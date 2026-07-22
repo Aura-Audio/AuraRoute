@@ -6,8 +6,8 @@
 
 - Main - https://auraroute.pages.dev/
 - Master - https://auraroute.pages.dev/methods/1-Client-Side-Tab-Capture/master.html
-- Index - https://auraroute.pages.dev/methods/1-Client-Side-Tab-Capture/master.html
-- Source - https://auraroute.pages.dev/methods/1-Client-Side-Tab-Capture/master.html
+- Index - https://auraroute.pages.dev/methods/1-Client-Side-Tab-Capture/index.html
+- Source - https://auraroute.pages.dev/methods/1-Client-Side-Tab-Capture/source.html
 
 
 Routing audio from multiple independent Single Page Applications (SPAs) across different browser tabs or windows into a single master mixing SPA presents a significant architectural challenge. Due to strict browser sandboxing and security protocols, the Web Audio API does not natively permit direct audio routing or the sharing of an `AudioContext` between separate tab or window contexts. 
