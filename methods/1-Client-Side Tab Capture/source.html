@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Source Tab</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f9f9f9; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Audio Source</h1>
+    <p>This tab generates a continuous audio tone.</p>
+    <button id="startBtn">Start Audio</button>
+    <p id="status" style="color: green; display: none;">Audio is playing.</p>
+
+    <script>
+        let audioCtx = null;
+
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            // Initialize AudioContext on user gesture to comply with autoplay policies
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+
+            // Create an oscillator with a randomized frequency to distinguish between tabs
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.type = 'sine';
+            // Random frequency between 300Hz and 500Hz
+            oscillator.frequency.value = 300 + Math.random() * 200; 
+            
+            // Keep volume low to prevent clipping when mixed
+            gainNode.gain.value = 0.15; 
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.start();
+
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('status').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
