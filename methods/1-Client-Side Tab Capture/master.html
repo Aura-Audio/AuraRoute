@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Master Mixer</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #eef; }
+        .channel { margin-bottom: 20px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button { padding: 8px 16px; margin-right: 10px; cursor: pointer; }
+        input[type="range"] { width: 200px; vertical-align: middle; }
+        #status { font-weight: bold; color: #333; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Master Audio Mixer</h1>
+    <p>Capture audio from other browser tabs and mix them here.</p>
+
+    <div class="channel">
+        <h3>Channel 1</h3>
+        <button id="capture1">Capture Tab 1</button>
+        <label>Volume: <input type="range" id="vol1" min="0" max="1" step="0.01" value="0.5" disabled></label>
+    </div>
+
+    <div class="channel">
+        <h3>Channel 2</h3>
+        <button id="capture2">Capture Tab 2</button>
+        <label>Volume: <input type="range" id="vol2" min="0" max="1" step="0.01" value="0.5" disabled></label>
+    </div>
+
+    <p id="status">Status: Idle (0 channels active)</p>
+
+    <script>
+        let audioCtx = null;
+        const channels = [
+            { stream: null, source: null, gain: null },
+            { stream: null, source: null, gain: null }
+        ];
+
+        async function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+        }
+
+        async function captureTabAudio(channelIndex) {
+            await initAudioContext();
+
+            try {
+                // Request display media. Video is required by most browsers to capture a specific tab, 
+                // even if we only intend to use the audio.
+                const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true, 
+                    audio: true 
+                });
+
+                // Immediately stop the video track to conserve system resources
+                displayStream.getVideoTracks().forEach(track => track.stop());
+
+                const audioTracks = displayStream.getAudioTracks();
+                
+                if (audioTracks.length === 0) {
+                    alert("Error: No audio track captured. Please ensure the 'Share audio' checkbox was selected in the browser prompt.");
+                    return;
+                }
+
+                // Isolate the audio track into a new MediaStream
+                const audioStream = new MediaStream(audioTracks);
+                channels[channelIndex].stream = audioStream;
+
+                // Route audio through Web Audio API
+                const sourceNode = audioCtx.createMediaStreamSource(audioStream);
+                const gainNode = audioCtx.createGain();
+                
+                channels[channelIndex].source = sourceNode;
+                channels[channelIndex].gain = gainNode;
+
+                // Connect Source -> Gain -> Destination (Speakers)
+                sourceNode.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                // Enable the corresponding volume slider
+                document.getElementById(`vol${channelIndex + 1}`).disabled = false;
+
+                // Monitor for the user manually stopping the tab share via the browser UI
+                audioTracks[0].onended = () => {
+                    cleanupChannel(channelIndex);
+                };
+
+                updateStatus();
+
+            } catch (err) {
+                console.error("Tab capture failed:", err);
+                if (err.name !== 'NotAllowedError') {
+                    alert("Failed to capture tab. Ensure you are running this on localhost or HTTPS.");
+                }
+            }
+        }
+
+        function cleanupChannel(channelIndex) {
+            const channel = channels[channelIndex];
+            if (channel.source) channel.source.disconnect();
+            if (channel.gain) channel.gain.disconnect();
+            
+            channel.stream = null;
+            channel.source = null;
+            channel.gain = null;
+
+            document.getElementById(`vol${channelIndex + 1}`).disabled = true;
+            updateStatus();
+        }
+
+        function updateStatus() {
+            const activeCount = channels.filter(c => c.stream !== null).length;
+            document.getElementById('status').textContent = `Status: ${activeCount} channel(s) active.`;
+        }
+
+        // Event Listeners for Capture Buttons
+        document.getElementById('capture1').addEventListener('click', () => captureTabAudio(0));
+        document.getElementById('capture2').addEventListener('click', () => captureTabAudio(1));
+
+        // Event Listeners for Volume Sliders
+        document.getElementById('vol1').addEventListener('input', (e) => {
+            if (channels[0].gain) channels[0].gain.gain.value = e.target.value;
+        });
+        document.getElementById('vol2').addEventListener('input', (e) => {
+            if (channels[1].gain) channels[1].gain.gain.value = e.target.value;
+        });
+    </script>
+</body>
+</html>
